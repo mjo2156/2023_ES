@@ -94,11 +94,11 @@ int main()
 
   /* Look for and handle keypresses */
   int buffer_out[192];
-  int buffer[128];
+  char buffer[128];
   int column = 0;
   int row = 19;
-  count = 0;
-  int cursor[4];
+  int count = 0;
+  char cursor[4];
   sprintf(cursor, "|");
   for (;;) {
     libusb_interrupt_transfer(keyboard, endpoint_address,(unsigned char *) &packet, sizeof(packet),&transferred, 0);
@@ -108,11 +108,7 @@ int main()
         column = 0;
         row++;
       }
-      //sprintf(keystate, "%02x %02x %02x", packet.modifiers, packet.keycode[0], packet.keycode[1]);
-      //printf("%s\n", keystate);
-      //fbputs(keystate, 6, 0);
 
-      //fbputs(buffer,sizeof(buffer),0)
 
       if (packet.keycode[0] == 0x29) { /* ESC pressed? */
 	        break;
@@ -155,7 +151,7 @@ int main()
         count++;
       }
 
-      if ((packet.modifiers == 0x02) || (packet.modifers == 0x20 || (packet.modifers == 0x22))) // check for other shift cases too modifers
+      if ((packet.modifiers == 0x02) || (packet.modifiers == 0x20 || (packet.modifiers == 0x22))) // check for other shift cases too modifers
       {
         //different switch case for shifted values
         switch(packet.keycode[0]){
@@ -305,11 +301,11 @@ int main()
             sprintf(buffer,")");
             break;
           case 0x00:
-            somthing = 0;
+            something = 0;
             break;
         }
-        if(somthing == 1){
-          fbputs(buffer_out,row,column);
+        if(something == 1){
+          fbputs(buffer,row,column);
           column++;
         }
       } 
@@ -398,7 +394,7 @@ int main()
             break;
           case 0x18: // Keyboard u
             buffer_out[count] = 117;
-            ssprintf(buffer,"u"); 
+            sprintf(buffer,"u"); 
             break;
           case 0x19: // Keyboard v 
             buffer_out[count] = 118;
@@ -461,10 +457,10 @@ int main()
             sprintf(buffer,"0");
             break;
           case 0x00:
-            somthing = 0;
+            something = 0;
             break;
         }
-        if(somthing == 1){
+        if(something == 1){
           fbputs(buffer,row,column);
           if(column == 64){
             if(row != 3){
