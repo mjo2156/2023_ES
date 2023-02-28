@@ -93,17 +93,26 @@ int main()
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
 
   /* Look for and handle keypresses */
+  int buffer_out[192];
   int buffer[128];
-  int count = 0;
+  int column = 0;
+  int row = 19;
+  count = 0;
+  int cursor[4];
+  sprintf(cursor, "|");
   for (;;) {
     libusb_interrupt_transfer(keyboard, endpoint_address,(unsigned char *) &packet, sizeof(packet),&transferred, 0);
     if (transferred == sizeof(packet)) 
     {
-      sprintf(keystate, "%02x %02x %02x", packet.modifiers, packet.keycode[0], packet.keycode[1]);
-      printf("%s\n", keystate);
-      fbputs(keystate, 6, 0);
+      if(column == 64){
+        column = 0;
+        row++;
+      }
+      //sprintf(keystate, "%02x %02x %02x", packet.modifiers, packet.keycode[0], packet.keycode[1]);
+      //printf("%s\n", keystate);
+      //fbputs(keystate, 6, 0);
 
-      fbputs(buffer)
+      //fbputs(buffer,sizeof(buffer),0)
 
       if (packet.keycode[0] == 0x29) { /* ESC pressed? */
 	        break;
@@ -111,18 +120,39 @@ int main()
 
       if (packet.keycode[0] == 0x28){     // enter = send over ascii
           // send buffer over network
+          // network stuff here
       }
       if(packet.keycode[0] == 0x4f){      // Keyboard Right Arrow
           // move pointer in buffer to right unless at furthest point
+          if(count <= 190){
+            count++;
+          }
+          column++;
       }
       if(packet.keycode[0] == 0x50){      // Keyboard Left Arrow
           // move pointer in buffer to left unless at furthest point
+          if(count == 0){
+            if(row != 0){
+              row--;
+              column = 64;
+              count--;
+            }
+          } else {
+            column--;
+            count--;
+          }
       }
       if(packet.keycode[0] == 0x2a){      // Back spcae
         // delete from buffer
+        buffer_out[count] = 32;
+        count--;
       }
-      if(packet.keycode[0] == 0x2c){
-        sprintf(" ");
+      if(packet.keycode[0] == 0x2c){      // space
+        buffer_out[count] = 32;
+        sprintf(buffer, " ");
+        fbputs(buffer,row,column);
+        column++;
+        count++;
       }
 
       if ((packet.modifiers == 0x02) || (packet.modifers == 0x20 || (packet.modifers == 0x22))) // check for other shift cases too modifers
@@ -130,236 +160,323 @@ int main()
         //different switch case for shifted values
         switch(packet.keycode[0]){
           case 0x04: // Keyboard a 
-            buffer[count] = 65;
-            sprintf("A");
-          case 0x05: // Keyboard b 
-            buffer[count] = 66;
-            sprintf("B");
+            buffer_out[count] = 65;
+            sprintf(buffer,"A");
+            break;
+          case 0x05: // Keyboard b
+            buffer_out[count] = 66; 
+            sprintf(buffer,"B");
+            break;
           case 0x06: // Keyboard c
-            buffer[count] = 67;
-            sprintf("C");
+            buffer_out[count] = 67;
+            sprintf(buffer,"C");
+            break;
           case 0x07: // Keyboard d
-            buffer[count] = 68;
-            sprintf("D");
+            buffer_out[count] = 68;
+            sprintf(buffer,"D");
+            break;
           case 0x08: // Keyboard e
-            buffer[count] = 69;
-            sprintf("E");
+            buffer_out[count] = 69;
+            sprintf(buffer,"E");
+            break;
           case 0x09: // Keyboard f
-            buffer[count] = 70;
-            sprintf("F");
+            buffer_out[count] = 70;
+            sprintf(buffer,"F");
+            break;
           case 0x0a: // Keyboard g
-            buffer[count] = 71;
-            sprintf("G");
+            buffer_out[count] = 71;
+            sprintf(buffer,"G");
+            break;
           case 0x0b: // Keyboard h
-            buffer[count] = 72;
-            sprintf("H");
+            buffer_out[count] = 72;
+            sprintf(buffer,"H");
+            break;
           case 0x0c: // Keyboard i
-            buffer[count] = 73;
-            sprintf("I");
+            buffer_out[count] = 73;
+            sprintf(buffer,"I");
+            break;
           case 0x0d: // Keyboard j
-            buffer[count] = 74;
-            sprintf("J");
+            buffer_out[count] = 74;
+            sprintf(buffer,"J");
+            break;
           case 0x0e: // Keyboard k
-            buffer[count] = 75;
-            sprintf("K"); 
+            buffer_out[count] = 75;
+            sprintf(buffer,"K"); 
+            break;
           case 0x0f: // Keyboard l
-            buffer[count] = 76;
-            sprintf("L");
+            buffer_out[count] = 76;
+            sprintf(buffer,"L");
+            break;
           case 0x10: // Keyboard m
-            buffer[count] = 77;
-            sprintf("M");
+            buffer_out[count] = 77;
+            sprintf(buffer,"M");
+            break;
           case 0x11: // Keyboard n
-            buffer[count] = 78;
-            sprintf("N");
+            buffer_out[count] = 78;
+            sprintf(buffer,"N");
+            break;
           case 0x12: // Keyboard o
-            buffer[count] = 79;
-            sprintf("O");
+            buffer_out[count] = 79;
+            sprintf(buffer,"O");
+            break;
           case 0x13: // Keyboard p
-            buffer[count] = 80;
-            sprintf("P");
-          case 0x14: // Keyboard q 
-            buffer[count] = 81;
-            sprintf("Q");
+            buffer_out[count] = 80;
+            sprintf(buffer,"P");
+            break;
+          case 0x14: // Keyboard q
+            buffer_out[count] = 81; 
+            sprintf(buffer,"Q");
+            break;
           case 0x15: // Keyboard r
-            buffer[count] = 82;
-            sprintf("R");
+            buffer_out[count] = 82;
+            sprintf(buffer,"R");
+            break;
           case 0x16: // Keyboard s
-            buffer[count] = 83;
-            sprintf("S"); 
-          case 0x17: // Keyboard t 
-            buffer[count] = 84;
-            sprintf("T");
+            buffer_out[count] = 83;
+            sprintf(buffer,"S");
+            break;
+          case 0x17: // Keyboard t
+            buffer_out[count] = 84; 
+            sprintf(buffer,"T");
+            break;
           case 0x18: // Keyboard u
-            buffer[count] = 85;
-            sprintf("U"); 
-          case 0x19: // Keyboard v 
-            buffer[count] = 86;
-            sprintf("V");
-          case 0x1a: // Keyboard w 
-            buffer[count] = 87;
-            sprintf("W");
+            buffer_out[count] = 85;
+            sprintf(buffer,"U"); 
+            break;
+          case 0x19: // Keyboard v
+            buffer_out[count] = 86; 
+            sprintf(buffer,"V");
+            break;
+          case 0x1a: // Keyboard w
+            buffer_out[count] = 87; 
+            sprintf(buffer,"W");
+            break;
           case 0x1b: // Keyboard x
-            buffer[count] = 88;
-            sprintf("X");
+            buffer_out[count] = 88;
+            sprintf(buffer,"X");
+            break;
           case 0x1c: // Keyboard y
-            buffer[count] = 89;
-            sprintf("Y");
+            buffer_out[count] = 89;
+            sprintf(buffer,"Y");
+            break;
           case 0x1d: // Keyboard z
-            buffer[count] = 90;
-            sprintf("Z");
+            buffer_out[count] = 90;
+            sprintf(buffer,"Z");
+            break;
 
           case 0x1e: // Keyboard !
-            buffer[count] = 33;
-            sprintf("!");
+            buffer_out[count] = 33;
+            sprintf(buffer,"!");
+            break;
           case 0x1f: // Keyboard @
-            buffer[count] = 64;
-            sprintf("@");
+            buffer_out[count] = 64;
+            sprintf(buffer,"@");
+            break;
           case 0x20: // Keyboard #
-            buffer[count] = 35;
-            sprintf("#");
+            buffer_out[count] = 35;
+            sprintf(buffer,"B");
+            break;
           case 0x21: // Keyboard $
-            buffer[count] = 36;
-            sprintf("$");
-          /*case 0x22: // Keyboard %
-            buffer[count] = 37;
-            sprintf("%");*/                      // ???
+            buffer_out[count] = 36;
+            sprintf(buffer,"$");
+            break;
+          case 0x22: // Keyboard %
+            buffer_out[count] = 37;
+            sprintf(buffer,"%%");
+            break;                      
           case 0x23: // Keyboard ^
-            buffer[count] = 94;
-            sprintf("^");
+            buffer_out[count] = 94;
+            sprintf(buffer,"^");
+            break;
           case 0x24: // Keyboard &
-            buffer[count] = 38;
-            sprintf("&");
+            buffer_out[count] = 38;
+            sprintf(buffer,"&");
+            break;
           case 0x25: // Keyboard *
-            buffer[count] = 42;
-            sprintf("*");
+            buffer_out[count] = 42;
+            sprintf(buffer,"*");
+            break;
           case 0x26: // Keyboard (
-            buffer[count] = 40;
-            sprintf("(");
+            buffer_out[count] = 40;
+            sprintf(buffer,"(");
+            break;
           case 0x27: // Keyboard )
-            buffer[count] = 41;
-            sprintf(")");
-          default:
+            buffer_out[count] = 41;
+            sprintf(buffer,")");
+            break;
+          case 0x00:
+            somthing = 0;
+            break;
+        }
+        if(somthing == 1){
+          fbputs(buffer_out,row,column);
+          column++;
         }
       } 
-
       else
       {
         switch(packet.keycode[0]){
           case 0x04: // Keyboard a 
-            buffer[count] = 97;
-            sprintf("a");
+            buffer_out[count] = 97;
+            sprintf(buffer,"a");
+            break;
           case 0x05: // Keyboard b 
-            buffer[count] = 98;
-            sprintf("b");
+            buffer_out[count] = 98;
+            sprintf(buffer,"b");
+            break;
           case 0x06: // Keyboard c
-            buffer[count] = 99;
-            sprintf("c");
+            buffer_out[count] = 99;
+            sprintf(buffer,"c");
+            break;
           case 0x07: // Keyboard d
-            buffer[count] = 100;
-            sprintf("d");
+            buffer_out[count] = 100;
+            sprintf(buffer,"d");
+            break;
           case 0x08: // Keyboard e
-            buffer[count] = 101;
-            sprintf("e");
+            buffer_out[count] = 101;
+            sprintf(buffer,"e");
+            break;
           case 0x09: // Keyboard f
-            buffer[count] = 102;
-            sprintf("f");
+            buffer_out[count] = 102;
+            sprintf(buffer,"f");
+            break;
           case 0x0a: // Keyboard g
-            buffer[count] = 103;
-            sprintf("g");
+            buffer_out[count] = 103;
+            sprintf(buffer,"g");
+            break;
           case 0x0b: // Keyboard h
-            buffer[count] = 104;
-            sprintf("h");
+            buffer_out[count] = 104;
+            sprintf(buffer,"h");
+            break;
           case 0x0c: // Keyboard i
-            buffer[count] = 105;
-            sprintf("i");
+            buffer_out[count] = 105;
+            sprintf(buffer,"i");
+            break;
           case 0x0d: // Keyboard j
-            buffer[count] = 106;
-            sprintf("j");
+            buffer_out[count] = 106;
+            sprintf(buffer,"j");
+            break;
           case 0x0e: // Keyboard k
-            buffer[count] = 107;
-            sprintf("k"); 
+            buffer_out[count] = 107;
+            sprintf(buffer,"k"); 
+            break;
           case 0x0f: // Keyboard l
-            buffer[count] = 108;
-            sprintf("l");
+            buffer_out[count] = 108;
+            sprintf(buffer,"l");
+            break;
           case 0x10: // Keyboard m
-            buffer[count] = 109;
-            sprintf("m");
+            buffer_out[count] = 109;
+            sprintf(buffer,"m");
+            break;
           case 0x11: // Keyboard n
-            buffer[count] = 110;
-            sprintf("n");
+            buffer_out[count] = 110;
+            sprintf(buffer,"n");
+            break;
           case 0x12: // Keyboard o
-            buffer[count] = 111;
-            sprintf("o");
+            buffer_out[count] = 111;
+            sprintf(buffer,"o");
+            break;
           case 0x13: // Keyboard p
-            buffer[count] = 112;
-            sprintf("p");
+            buffer_out[count] = 112;
+            sprintf(buffer,"p");
+            break;
           case 0x14: // Keyboard q 
-            buffer[count] = 113;
-            sprintf("q");
+            buffer_out[count] = 113;
+            sprintf(buffer,"q");
+            break;
           case 0x15: // Keyboard r
-            buffer[count] = 114;
-            sprintf("r");
+            buffer_out[count] = 114;
+            sprintf(buffer,"r");
+            break;
           case 0x16: // Keyboard s
-            buffer[count] = 115;
-            sprintf("s"); 
+            buffer_out[count] = 115;
+            sprintf(buffer,"s"); 
+            break;
           case 0x17: // Keyboard t 
-            buffer[count] = 116;
-            sprintf("t");
+            buffer_out[count] = 116;
+            sprintf(buffer,"t");
+            break;
           case 0x18: // Keyboard u
-            buffer[count] = 117;
-            sprintf("u"); 
+            buffer_out[count] = 117;
+            ssprintf(buffer,"u"); 
+            break;
           case 0x19: // Keyboard v 
-            buffer[count] = 118;
-            sprintf("v");
+            buffer_out[count] = 118;
+            sprintf(buffer,"v");
+            break;
           case 0x1a: // Keyboard w 
-            buffer[count] = 119;
-            sprintf("w");
+            buffer_out[count] = 119;
+            sprintf(buffer,"w");
+            break;
           case 0x1b: // Keyboard x
-            buffer[count] = 120;
-            sprintf("x");
+            buffer_out[count] = 120;
+            sprintf(buffer,"x");
+            break;
           case 0x1c: // Keyboard y
-            buffer[count] = 121;
-            sprintf("y");
+            buffer_out[count] = 121;
+            sprintf(buffer,"y");
+            break;
           case 0x1d: // Keyboard z
-            buffer[count] = 122;
-            sprintf("z");
-
+            buffer_out[count] = 122;
+            sprintf(buffer,"z");
+            break;
           case 0x1e: // Keyboard 1
-            buffer[count] = 49;
-            sprintf("1");
+            buffer_out[count] = 49;
+            sprintf(buffer,"1");
+            break;
           case 0x1f: // Keyboard 2
-            buffer[count] = 50;
-            sprintf("2");
+            buffer_out[count] = 50;
+            sprintf(buffer,"2");
+            break;
           case 0x20: // Keyboard 3
-            buffer[count] = 51;
-            sprintf("3");
+            buffer_out[count] = 51;
+            sprintf(buffer,"3");
+            break;
           case 0x21: // Keyboard 4
-            buffer[count] = 52;
-            sprintf("4");
+            buffer_out[count] = 52;
+            sprintf(buffer,"4");
+            break;
           case 0x22: // Keyboard 5
-            buffer[count] = 53;
-            sprintf("5");
+            buffer_out[count] = 53;
+            sprintf(buffer,"5");
+            break;
           case 0x23: // Keyboard 6
-            buffer[count] = 54;
-            sprintf("6");
+            buffer_out[count] = 54;
+            sprintf(buffer,"6");
+            break;
           case 0x24: // Keyboard 7
-            buffer[count] = 55;
-            sprintf("7");
+            buffer_out[count] = 55;
+            sprintf(buffer,"7");
+            break;
           case 0x25: // Keyboard 8
-            buffer[count] = 56;
-            sprintf("8");
+            buffer_out[count] = 56;
+            sprintf(buffer,"8");
+            break;
           case 0x26: // Keyboard 9
-            buffer[count] = 57;
-            sprintf("9");
+            buffer_out[count] = 57;
+            sprintf(buffer,"9");
+            break;
           case 0x27: // Keyboard 0
-            buffer[count] = 48;
-            sprintf("0");
-          default:
+            buffer_out[count] = 48;
+            sprintf(buffer,"0");
+            break;
+          case 0x00:
+            somthing = 0;
+            break;
+        }
+        if(somthing == 1){
+          fbputs(buffer,row,column);
+          if(column == 64){
+            if(row != 3){
+              fbputs(cursor,row+1,0);
+            }   
+          } else {
+          fbputs(cursor,row,column + 1);
+          }
+          column++;
+          count++;
         }
       }
-
-      
-
     }
   }
 
