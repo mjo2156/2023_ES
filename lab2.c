@@ -2,7 +2,9 @@
  *
  * CSEE 4840 Lab 2 for 2019
  *
- * Name/UNI: Please Changeto Yourname (pcy2301)
+ * Name/UNI: Michael Ozymy (mjo2156)
+ *  	     Joseph Han	(jh4632)
+ *	     Lennart Shulze (ls3932)
  */
 #include "fbputchar.h"
 #include <stdio.h>
@@ -20,9 +22,9 @@
 /* arthur.cs.columbia.edu */
 #define SERVER_HOST "128.59.19.114"
 #define SERVER_PORT 42000
-
+#define NUM_KEYS 3
 #define BUFFER_SIZE 128
-
+#define SCREEN_ROWS 17
 /*
  * References:
  *
@@ -47,6 +49,7 @@ int main()
 
   struct usb_keyboard_packet packet;
   int transferred;
+  //char keystate[NUM_KEYS][12];
   char keystate[12];
 
   if ((err = fbopen()) != 0) {
@@ -54,13 +57,26 @@ int main()
     exit(1);
   }
 
+
+
   /* Draw rows of asterisks across the top and bottom of the screen */
   for (col = 0 ; col < 64 ; col++) {
     fbputchar('*', 0, col);
+    fbputchar('-', 18, col);
     fbputchar('*', 23, col);
   }
 
   fbputs("Hello CSEE 4840 World!", 4, 10);
+
+  /* Clear the screen when the program starts */
+  for (col = 0 ; col < 64; col++) {
+    fbputchar('*', 0, col);
+    fbputchar('-', 18, col);
+    fbputchar('*', 23, col);
+    for (int row = 0; row < 24; row++) {
+      fbputchar(' ', row, col);
+    }
+  }
 
   /* Open the keyboard */
   if ( (keyboard = openkeyboard(&endpoint_address)) == NULL ) {
@@ -88,23 +104,79 @@ int main()
     fprintf(stderr, "Error: connect() failed.  Is the server running?\n");
     exit(1);
   }
- 
+
   /* Start the network thread */
   pthread_create(&network_thread, NULL, network_thread_f, NULL);
 
   /* Look for and handle keypresses */
-  int buffer_out[192];
+  char buffer_out[256];
+  char old_buffer_out[256];
+ // char buffer_out_char[256];
+  char out_char;
+  out_char  = 'a';
   char buffer[128];
   int column = 0;
   int row = 19;
   int count = 0;
-  char cursor[4];
-  sprintf(cursor, "|");
+  char cursor = '_';
+  int maxcount = 0;
+  int maxrow = 0;
+  int maxcol = 0;
+  int max = 0;
+  int prev = 0;
+  int input_code = 0;
   for (;;) {
+    if ( ((row == 20) && (column >=62)) || (row>20) ){
+	row = 20;
+	maxrow = 20;
+	column = 62;
+	maxcol = 62;
+	maxcount = 125;	
+    	count = 125;
+    } 
+   if ( ((maxrow == 20) && (maxcol>=63)) || (maxrow > 20) ){
+        maxrow = 20;
+        maxcol = 62;
+        maxcount = 125;
+    }
+
+    if (row == 18){
+	row = 19;
+	column = 0;
+	count = 0;
+    }
+    //if(maxcount != count){
+    //    fbputchar(' ',maxrow,maxcol+1);
+    //}
+
+    //fbputchar(maxcount,23)
+	//printf("%d:", count);
+	//printf("%d:", maxcount);
+	//printf("%d:", row);
+	//printf("%d:", column);
+	//printf("%d:", maxrow);
+	//printf("%d:::", maxcol);
+    if (maxcount >= 126){
+	max = 1;
+    } else {
+	max = 0;
+    }
+    
+    for (int i =0;i<maxcount;i++){
+	old_buffer_out[i] = buffer_out[i];
+    }
+    if(row>maxrow){
+	maxrow=row;
+    }
+    if (count == maxcount){
+	maxrow = row;
+	maxcol = column;
+    }
+    int something = 1;
     libusb_interrupt_transfer(keyboard, endpoint_address,(unsigned char *) &packet, sizeof(packet),&transferred, 0);
     if (transferred == sizeof(packet)) 
     {
-      if(column == 64){
+      if(column == 63 && packet.keycode[0] != 0x2a){
         column = 0;
         row++;
       }
@@ -115,48 +187,139 @@ int main()
       }
 
       if (packet.keycode[0] == 0x28){     // enter = send over ascii
-          // send buffer over network
-          // network stuff here
+        // send buffer over network
+        // network stuff here
+	// sprintf(keystate, "enter begin");
+	//buffer_out_char = buffer_out;
+	char send_buffer[256];
+	for(int t = 0; t<maxcount+1;t++){
+		send_buffer[t] = buffer_out[t];
+	}  
+	if (write(sockfd, &send_buffer, maxcount+1) < 0){
+		printf("error");	
+	} else {
+	  printf("test: %c", out_char);
+	}
+	for(int i = 19;i<23;i++){
+		for(int j=0;j<64;j++){
+			fbputchar(' ',i,j);
+		}
+	}
+	count=0;
+	maxcount=0;
+	maxrow=19;
+	maxcol=0;
+	row=19;
+	column=0;
       }
       if(packet.keycode[0] == 0x4f){      // Keyboard Right Arrow
-          // move pointer in buffer to right unless at furthest point
-          if(count <= 190){
-            count++;
-          }
-          column++;
+	  if (count!=maxcount){
+	  	fbputchar(buffer_out[count],row,column);
+          	if(count <= 190){
+            		count++;
+          	}
+          	column++;
+      	  }
       }
-      if(packet.keycode[0] == 0x50){      // Keyboard Left Arrow
-          // move pointer in buffer to left unless at furthest point
-          if(count == 0){
-            if(row != 0){
-              row--;
-              column = 64;
-              count--;
-            }
-          } else {
-            column--;
-            count--;
-          }
+      if((packet.keycode[0] == 0x50)&&(count != 0)){      // Keyboard Left Arrow
+        if(count==maxcount){
+		fbputchar(' ',row,column);
+	}		
+	else {
+		fbputchar(buffer_out[count],row,column);  
+	}
+	if(column == 0){
+            	if(row != 0){
+              		row--;
+            		column = 62;
+              		count=count-2;
+            	}
+        } else {
+            	column--;
+            	count--;
+         }
       }
-      if(packet.keycode[0] == 0x2a){      // Back spcae
-        // delete from buffer
-        buffer_out[count] = 32;
-        count--;
-      }
-      if(packet.keycode[0] == 0x2c){      // space
-        buffer_out[count] = 32;
-        sprintf(buffer, " ");
-        fbputs(buffer,row,column);
-        column++;
-        count++;
+      if((packet.keycode[0] == 0x2a) && (count!=0)){      // Back spcae
+        if(count == maxcount){
+		buffer_out[count] = 32; // insert space at end of buffer where last char was
+		fbputchar(' ',row,column);
+		column--;
+		maxcount--;
+		count--;
+		maxcol--;
+	} else {
+		fbputchar(' ',maxrow,maxcol);
+		maxcol--;
+		int temprow = row;
+		if (column > 0){
+			int tempcol = column-1;	
+			for(int i = count;i<(maxcount);i++){
+				buffer_out[i-1] = old_buffer_out[i];
+				fbputchar(old_buffer_out[i], temprow, tempcol++);
+			}
+			column--;
+			maxcount--;
+			count--;
+			if (maxcol < 0){
+				maxrow--;
+				maxcol = 62;	
+			}
+		}
+	} 
+	if (column <= 0) { // wrap around
+		fbputchar(' ', row, 0);
+		row--;
+		column = 62;
+	}
       }
 
-      if ((packet.modifiers == 0x02) || (packet.modifiers == 0x20 || (packet.modifiers == 0x22))) // check for other shift cases too modifers
+        if((prev == packet.keycode[0]) && (packet.keycode[1] != 0x00)){  // holding and pressing  multiple keys at the same time
+                input_code = packet.keycode[1];
+        } else if (prev == 0x00){
+                input_code = packet.keycode[0];
+        } else {
+                input_code = packet.keycode[1];
+        }
+        prev = packet.keycode[0];
+
+      if((input_code == 0x2c)&&(max==0)){      // space
+       	if(count == maxcount){
+		buffer_out[count] = 32;
+        	sprintf(buffer, " ");
+        	fbputs(buffer,row,column);
+        	column++;
+        	count++;
+		maxcount++;
+	} else {
+		fbputchar(' ',row,column);
+	        buffer_out[count] = 32;
+                int temprow = row;
+                int tempcol = column;
+                for (int i=count;i<maxcount;i++){
+                        if((i==63)||(i==127)||(i==191)){
+                                tempcol = 0;
+                                temprow++;
+                        }
+                        if((column == 0) && (row != 19)) {
+                                for(int k=0;k<64;k++){
+                                        fbputchar(' ',temprow,k);
+                                }
+                                continue;
+                        }
+                        buffer_out[i+1] = old_buffer_out[i];
+                        fbputchar(buffer_out[i+1], temprow, ++tempcol);
+                }
+                column++;
+                count++;
+                maxcount++;
+                maxcol++;
+	 }
+      }
+      if ((max==0)&&((packet.modifiers == 0x02) || (packet.modifiers == 0x20) || (packet.modifiers == 0x22))) // check for other shift cases too modifers
       {
-        //different switch case for shifted values
-        switch(packet.keycode[0]){
+        switch(input_code){
           case 0x04: // Keyboard a 
-            buffer_out[count] = 65;
+	    buffer_out[count] = 65;
             sprintf(buffer,"A");
             break;
           case 0x05: // Keyboard b
@@ -259,7 +422,6 @@ int main()
             buffer_out[count] = 90;
             sprintf(buffer,"Z");
             break;
-
           case 0x1e: // Keyboard !
             buffer_out[count] = 33;
             sprintf(buffer,"!");
@@ -270,7 +432,7 @@ int main()
             break;
           case 0x20: // Keyboard #
             buffer_out[count] = 35;
-            sprintf(buffer,"B");
+            sprintf(buffer,"#");
             break;
           case 0x21: // Keyboard $
             buffer_out[count] = 36;
@@ -300,18 +462,76 @@ int main()
             buffer_out[count] = 41;
             sprintf(buffer,")");
             break;
+	  case 0x36: //comma
+	    buffer_out[count] = 44; 
+ 	    sprintf(buffer,",");
+	    break;
+	  case 0x34: //apos
+	    buffer_out[count] = 39;
+	    sprintf(buffer,"'");
+	    break;
+	  case 0x37: //period
+	    buffer[count] = 46;
+	    sprintf(buffer,".");
+	    break;
           case 0x00:
             something = 0;
             break;
+	  default:
+	    something = 0;
+	    break;
         }
-        if(something == 1){
-          fbputs(buffer,row,column);
-          column++;
+      if(something == 1){
+          if(maxcount == count){
+          	fbputs(buffer,row,column);
+		if (row != 20){
+          		if(column >= 62){
+            			fbputchar(cursor,row+1,0);
+            		} else {
+				fbputchar(cursor,row,column + 1);
+			}
+          	} else {
+			if (column < 62){
+              			fbputchar(cursor,row,column + 1);
+			}
+          	}
+          	column++;
+          	count++;
+          	maxcount++;
+          	maxcol++;
+          } else {
+                
+                fbputs(buffer,row,column);
+                int temprow = row;
+                int tempcol = column;
+                for (int i=count;i<maxcount;i++){
+                        if (i==63){
+			//if((i==63)||(i==127)||(i==191)){
+                                tempcol = 0; //CHNGD:0
+                                temprow++;
+                        }
+                        if((column == 0) && (row != 19)) {
+                                for(int k=0;k<64;k++){
+                                        fbputchar(' ',temprow,k);
+                                }
+                                continue;
+                        }
+                        buffer_out[i+1] = old_buffer_out[i];
+                        fbputchar(buffer_out[i+1], temprow, ++tempcol);
+                }
+                column++;
+                count++;
+                maxcount++;
+		maxcol++;
+          }
+        } else {
+           fbputchar(cursor,row,column);
         }
+
       } 
-      else
+      else if (max == 0)
       {
-        switch(packet.keycode[0]){
+        switch(input_code){
           case 0x04: // Keyboard a 
             buffer_out[count] = 97;
             sprintf(buffer,"a");
@@ -456,21 +676,70 @@ int main()
             buffer_out[count] = 48;
             sprintf(buffer,"0");
             break;
+	  case 0x36: //comma
+            buffer_out[count] = 44;
+            sprintf(buffer,",");
+            break;
+          case 0x37: //period
+            buffer[count] = 46;
+            sprintf(buffer,".");
+            break;
+          case 0x34: //apos
+            buffer_out[count] = 39;
+            sprintf(buffer,"'");
+            break;
           case 0x00:
             something = 0;
             break;
+	  default:
+	    something = 0;
+	    break;
         }
         if(something == 1){
-          fbputs(buffer,row,column);
-          if(column == 64){
-            if(row != 3){
-              fbputs(cursor,row+1,0);
-            }   
-          } else {
-          fbputs(cursor,row,column + 1);
-          }
-          column++;
-          count++;
+	  if(maxcount == count){
+          	fbputs(buffer,row,column);
+          	if (row != 20){
+                        if(column >= 62){
+                                fbputchar(cursor,row+1,0);
+                        } else {
+                                fbputchar(cursor,row,column + 1);
+                        }
+                } else {
+                        if (column < 62){
+                                fbputchar(cursor,row,column + 1);
+                        }
+                }
+		column++;
+          	count++;
+	 	maxcount++;
+	  	maxcol++;
+	  } else {
+		//maxcol++;
+		fbputs(buffer,row,column);
+		int temprow = row;
+		int tempcol = column;
+		for (int i=count;i<maxcount;i++){
+			if (i==63){
+			//if((i==63)||(i==127)||(i==191)){
+				tempcol = 0;
+				temprow++;
+			}
+			if((column == 0)&&(row!=19)) {
+				for(int k=0;k<64;k++){
+					fbputchar(' ',temprow,k);
+				}
+				continue;
+			}
+			buffer_out[i+1] = old_buffer_out[i];
+			fbputchar(buffer_out[i+1], temprow, ++tempcol);
+		}
+		column++;
+		maxcol++;
+		count++;
+		maxcount++;
+	  }
+        } else {
+	   fbputchar(cursor,row,column);
         }
       }
     }
@@ -485,15 +754,128 @@ int main()
   return 0;
 }
 
+
+
+  /* Look for and handle keypresses 
+  char buffer[128];
+  int row = 19;
+  int column = 0;
+  for (;;) {
+  int something = 1;
+    libusb_interrupt_transfer(keyboard, endpoint_address,
+			      (unsigned char *) &packet, sizeof(packet),
+			      &transferred, 0);
+    for (int i = 0; i < NUM_KEYS; i++) for (int j = 0; j < 12; j++)
+      keystate[i][j] = '\0';
+    if (transferred == sizeof(packet)) {
+      sprintf(keystate[1], "%02x %02x %02x", packet.modifiers, packet.keycode[0],
+	      packet.keycode[1]);
+      printf("%s\n", keystate[1]);
+      printf("keystate 0 %s\n", keystate[0]);
+      //fbputs(keystate, 17, 0);
+      fbputs(keystate[0], 17, 0);
+      fbputs(keystate[1], 16, 0);
+      for (int i = 0; i < 12; i++) {
+        keystate[0][i] = keystate[1][i];
+      }
+      if (packet.keycode[0] == 0x29) {
+	break;
+      }
+      if(column == 64){
+	column = 0;
+	row++;
+      }
+      switch (packet.keycode[0]){
+	case 0x04:
+		sprintf(buffer,"a");
+		break;
+	case 0x05:
+		sprintf(buffer,"b");
+		break;
+	case 0x06:
+		sprintf(buffer,"c");
+		break;
+	case 0x07: 
+		sprintf(buffer,"d");
+		break;
+	case 0x00:
+		something = 0;
+		break;
+      }
+      if(something == 1){
+      	fbputs(buffer,row,column);
+      	column++;
+      }
+    }
+  }
+
+  // Terminate the network thread 
+  pthread_cancel(network_thread);
+
+  // Wait for the network thread to finish
+  pthread_join(network_thread, NULL);
+
+  return 0;
+} 
+*/
+
 void *network_thread_f(void *ignored)
 {
-  char recvBuf[BUFFER_SIZE];
+  char recvBuf[SCREEN_ROWS][BUFFER_SIZE];
+  for (int i = 0; i < SCREEN_ROWS; i++) {
+    for (int j = 0; j < BUFFER_SIZE; j++) {
+      recvBuf[i][j] = '\0';
+    }
+  }
+  printf("Debug to check buffer value 7 %s", recvBuf[7]); 
   int n;
   /* Receive data */
-  while ( (n = read(sockfd, &recvBuf, BUFFER_SIZE - 1)) > 0 ) {
-    recvBuf[n] = '\0';
-    printf("%s", recvBuf);
-    fbputs(recvBuf, 8, 0);
+  int latest = 0;
+  char emptybuf[64];
+  for (int i = 0; i < 64; i++) {
+    emptybuf[i] = ' ';
+  }
+  while ( (n = read(sockfd, &recvBuf[latest], 64)) > 0 ) {
+    recvBuf[latest][(n == 64) ? n : n-1] = '\0';              // For handling mid-sentence cutoffs
+    if (recvBuf[latest][n-2] == '\r') recvBuf[latest][n-2] = '\0'; // For handling carriage return characters '\r\n' from proper HTTP protocols
+    for (int col = 0 ; col < 64; col++) {
+      fbputchar('*', 0, col);
+      fbputchar('-', 18, col);
+      fbputchar('*', 23, col);
+    }
+    printf("The data received was %s\n", recvBuf[latest]);
+    /*for (int row = 1; row < 18; row++) {
+      for (int col = 0; col < 64; col++) {
+	fbputchar(' ', row, col);
+      }
+    }*/
+    fbputs(emptybuf, latest + 1, 0);
+    fbputs(recvBuf[latest], latest + 1, 0);
+    latest = (latest + 1) % 17;
+    if (latest == 0) {
+      break;
+    }
+  }
+
+  while ( (n = read(sockfd, &recvBuf[latest], 64)) > 0 ) {
+    recvBuf[latest][(n == 64) ? n : n-1] = '\0';              // For handling mid-sentence cutoffs
+    if (recvBuf[latest][n-2] == '\r') recvBuf[latest][n-2] = '\0'; // For handling carriage return characters '\r\n' from proper HTTP protocols
+    for (int col = 0 ; col < 64; col++) {
+      fbputchar('*', 0, col);
+      fbputchar('-', 18, col);
+      fbputchar('*', 23, col);
+    }
+    printf("The data received was %s\n", recvBuf[latest]);
+    /*for (int row = 1; row < 18; row++) {
+      for (int col = 0; col < 64; col++) {
+	fbputchar(' ', row, col);
+      }
+    }*/
+    for (int ind = 1; ind < 18; ind++) {
+      fbputs(emptybuf, ind, 0);
+      fbputs(recvBuf[(latest + ind)%17], ind, 0);
+    }
+    latest = (latest + 1) % 17;
   }
 
   return NULL;
